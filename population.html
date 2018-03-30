@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+
+<head>
+  <meta charset="utf-8">
+  <!-- link to version 4 of d3 -->
+  <script src="https://d3js.org/d3.v4.min.js"></script>
+
+  <!-- instead of stylesheets -->
+  <style>
+    body {
+      margin: 0;
+      position: fixed;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      left: 0;
+    }
+  </style>
+</head>
+
+
+<body>
+  <!-- another option to link to separate js file -->
+  <script>
+    // declate outer height and width as variables to easily modify
+    var outerWidth = 960,
+      outerHeight = 400;
+
+    // make variable for margins to easily move the axes/ differentiate between inner and outer
+    var margin = {
+      top: 50,
+      left: 30,
+      right: 50,
+      bottom: 30
+    };
+
+    //set the default of the charge to not be scaled by population
+    var scaledByPopulation = false;
+
+
+    //declare the inner width of just the chart (just call it width) and define it in relation to the margins we made
+    var width = outerWidth - margin.left - margin.right,
+      height = outerHeight - margin.top - margin.bottom;
+
+
+    //create a linear scale for the x coordinates
+    var xScale = d3.scaleLinear()
+      .range([0, width]);
+
+    //create a linear scale for the y coordinates, and put the larger number (height variable) first so that the y axis will flip
+    var yScale = d3.scaleLinear()
+      .range([height, 0]);
+
+    //create a square root scale so that the radii of circles take up the right amount of space
+    var radiusScale = d3.scaleSqrt()
+      .range([1, 25]);
+
+    //create an ordinal scale and fill it with colors. the colors can be assigned one by one to specified categories
+    var colorScale = d3.scaleOrdinal()
+      .range(['#8dd3c7', '#ffffb3', '#bebada', '#fb8072', '#80b1d3', '#fdb462', '#b3de69', '#fccde5', '#d9d9d9', '#bc80bd']);
+
+
+    // LOAD THE DATA --> the data is stored in a "dictionary" the + is to turn the row names into strings? or strings to js
+    d3.csv("data/rosling.csv", function(err, csvData) {
+      csvData.forEach(function(row) {
+        row.income = +row.income;
+        row.lifeExpectancy = +row.lifeExpectancy;
+        row.population = +row.population;
+        row.year = +row.year;
+      });
+
+
+      decades = [1800, 1810, 1820, 1830, 1840, 1850, 1860, 1870, 1880, 1890, 1900, 1910, 1920, 1930, 1940, 1950, 1960, 1970, 1980, 1990, 2000];
+      for (var i = 0; i < decades.length; i++) {};
+
+      //create button to animate map
+
+      //filter out the data to give us back only the year - maybe replaces this with cycle function
+      csvData = csvData.filter(function(row) {
+        return row.year === decades[18];
+        // return row.year === 1800||2000;
+      });
+
+      //button to change the year
+      var yearButton = d3.select('body').append('button').text('Change Decades');
+      yearButton.on("click", function(csvData) {
+        return row.year === decades[3];
+      });
+
+      //extract the incomes row
+      var incomes = csvData.map(function(row) {
+        return row.income;
+      });
+
+      // extract the life expectancies row
+      var lifeExpectancies = csvData.map(function(row) {
+        return row.lifeExpectancy;
+      });
+
+      //extract the population data
+      var populations = csvData.map(function(row) {
+        return row.population;
+      });
+
+      //set the domain of the linear x scale to be the extent (lowest and highest) datapoints
+      xScale.domain(d3.extent(incomes));
+
+      //set the domain of the y scale to be from 22 - the highest life expectancy
+      yScale.domain([22, d3.max(lifeExpectancies)]);
+
+      //set the domain of the radial scale to be from 0 to the highest population
+      radiusScale.domain([0, d3.max(populations)]);
+
+      var svg = d3.select("body")
+        .append("svg")
+        .attr("width", outerWidth)
+        .attr("height", outerHeight)
+        .append("g")
+        .attr("transform", "translate(" + margin.left + " " + margin.top + ")");
+
+
+      var tooltip = d3.select("body")
+        .append("div")
+        .text("Hover over a country for details");
+
+      var yearLabel = d3.select('body')
+        .append('div')
+        .text('Year');
+
+      var yAxis = d3.axisLeft(yScale);
+
+      var yAxisContainer = svg.append("g");
+
+      var xAxis = d3.axisBottom(xScale)
+        .tickFormat(function(value) {
+          return "$" + value;
+        });
+
+      var xAxisContainer = svg.append("g")
+        .attr("transform", "translate(0 " + height + ")");
+
+      //yAxis(yAxisContainer);
+      yAxisContainer.call(yAxis);
+
+      //xAxis(xAxisContainer);
+      xAxisContainer.call(xAxis);
+
+
+      csvData.forEach(function(row) {
+        svg.append("circle")
+          .attr("r", 3)
+          .datum(row);
+      });
+
+      var circles = svg.selectAll("circle")
+        .attr("cx", function(d) {
+          return xScale(d.income);
+        })
+        .attr("cy", function(d) {
+          return yScale(d.lifeExpectancy);
+        })
+        .attr("fill", function(d) {
+          return colorScale(d.region);
+        })
+        .on("mouseout", function(d) {
+          tooltip.text("Hover over a country for details");
+          d3.select(this).attr("stroke", "none");
+        })
+        .on("mouseover", function(d) {
+          yearLabel.text(d.year);
+          d3.select(this).attr("stroke", "black")
+            .attr("stroke-width", "3");
+        })
+        .on("mouseover", function(d) {
+          tooltip.text(d.name);
+          d3.select(this).attr("stroke", "black")
+            .attr("stroke-width", "3");
+        });
+
+      var button = d3.select("body").append("button");
+
+      if (scaledByPopulation) {
+        button.text("Equal size");
+      } else {
+        button.text("Scale by population");
+      }
+
+      button.on("click", function() {
+        // Flip true to false or false to true
+        scaledByPopulation = !scaledByPopulation;
+
+        if (scaledByPopulation) {
+          button.text("Equal size");
+        } else {
+          button.text("Scale by population");
+        }
+
+        circles
+          .transition()
+          .duration(1000)
+          .attr("r", function(d) {
+            if (scaledByPopulation) {
+              return radiusScale(d.population);
+            } else {
+              return 3;
+            }
+          });
+
+
+      });
+    });
+    // });
+  </script>
+</body>
